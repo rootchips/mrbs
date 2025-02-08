@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -9,8 +8,9 @@ class RoomController extends Controller
 {
     public function index(Request $request)
     {
-        $data = Room::query()
-            ->when($request->search, function ($query, $search) {
+        $search = $request->search;
+
+        $data = Room::when($search, function ($query) use ($search) {
                 $query->where(function ($query) use ($search) {
                     $query->where('name', 'ILIKE', "%{$search}%")
                         ->orWhere('description', 'ILIKE', "%{$search}%")
@@ -19,6 +19,7 @@ class RoomController extends Controller
                         ->orWhere('status', 'ILIKE', "%{$search}%");
                 });
             })
+            ->select(['id', 'name', 'description', 'total_pax', 'equipments', 'status'])
             ->paginate(10);
 
         return response()->json($data);
@@ -26,56 +27,38 @@ class RoomController extends Controller
 
     public function portal()
     {
-        $data = Room::query()
-            ->where('status', 'Available')
-            ->get();
-
-        return response()->json($data);
+        return response()->json(
+            Room::where('status', 'Available')->select(['id', 'name'])->get()
+        );
     }
 
     public function store(Request $request)
     {
-        sleep(3);
+        $room = Room::create($request->only(['name', 'description', 'total_pax', 'equipments', 'status']));
 
-        $room = new Room;
-        $room->name = $request->name;
-        $room->description = $request->description;
-        $room->total_pax = $request->total_pax;
-        $room->equipments = $request->equipments;
-        $room->status = $request->status;
-        $room->save();
-
-        if ($request->hasFile('image_file')) {
-            foreach ($request->file('image_file') as $photo) {
-                $room->addMedia($photo)->toMediaCollection('rooms');
-            }
-        }
+        $this->handleFileUpload($request, $room);
 
         return response()->json(['message' => 'Success']);
     }
 
     public function show(Room $room)
     {
-        $data = $room->load('bookings.user', 'media');
-
-        return response()->json($data);
+        return response()->json(
+            $room->load([
+                'bookings' => function ($query) {
+                    $query->select('id', 'room_id', 'user_id')
+                        ->with(['user:id,name']);
+                },
+                'media'
+            ])
+        );
     }
 
     public function update(Room $room, Request $request)
     {
-        sleep(3);
-        $room->name = $request->name;
-        $room->description = $request->description;
-        $room->total_pax = $request->total_pax;
-        $room->equipments = $request->equipments;
-        $room->status = $request->status;
-        $room->save();
+        $room->update($request->only(['name', 'description', 'total_pax', 'equipments', 'status']));
 
-        if ($request->hasFile('image_file')) {
-            foreach ($request->file('image_file') as $photo) {
-                $room->addMedia($photo)->toMediaCollection('rooms');
-            }
-        }
+        $this->handleFileUpload($request, $room);
 
         return response()->json(['message' => 'Success']);
     }
@@ -83,7 +66,15 @@ class RoomController extends Controller
     public function destroy(Room $room)
     {
         $room->delete();
+        return response()->json(['message' => 'Success']);
+    }
 
-        return response()->json(['message', 'success']);
+    private function handleFileUpload(Request $request, Room $room)
+    {
+        if ($request->hasFile('image_file')) {
+            foreach ($request->file('image_file') as $photo) {
+                $room->addMedia($photo)->toMediaCollection('rooms');
+            }
+        }
     }
 }
