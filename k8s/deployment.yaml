@@ -2,10 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: meeting-room-app
-  labels:
-    app: meeting-room-app
 spec:
-  replicas: 2
+  replicas: 2  # Adjust as needed
   selector:
     matchLabels:
       app: meeting-room-app
@@ -15,10 +13,33 @@ spec:
         app: meeting-room-app
     spec:
       containers:
-      - name: meeting-room-app
-        image: roslansaidi/meeting-room-app:latest
-        ports:
-        - containerPort: 80
+        - name: meeting-room-app
+          image: roslansaidi/meeting-room-app:latest  # Replace with your Docker Hub image
+          ports:
+            - containerPort: 80
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: APP_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: app-key
+            - name: DB_CONNECTION
+              value: "pgsql"
+            - name: DB_HOST
+              value: "postgres-service"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_DATABASE
+              value: "meetingroom"
+            - name: DB_USERNAME
+              value: "postgres"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: db-password
 ---
 apiVersion: v1
 kind: Service
@@ -28,7 +49,7 @@ spec:
   selector:
     app: meeting-room-app
   ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 80
-  type: NodePortA
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: NodePort  # FIXED: Changed from "NodePortA" to "NodePort"
