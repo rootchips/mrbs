@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meeting-room-app
+  labels:
+    app: meeting-room-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: meeting-room-app
+  template:
+    metadata:
+      labels:
+        app: meeting-room-app
+    spec:
+      containers:
+      - name: meeting-room-app
+        image: roslansaidi/meeting-room-app:latest
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meeting-room-app-service
+spec:
+  selector:
+    app: meeting-room-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: NodePortA
